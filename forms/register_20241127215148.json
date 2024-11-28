@@ -1,0 +1,38 @@
+[
+    {
+        "role": "system",
+        "content": "You are helping patients fill out a registration form.\nAsk one question at a time to collect: Full Name, Complete Address, Insurance Provider Name, and Insurance Group Number.\nAdapt to the patient's language if they respond in a different language, but keep the form data in English.\nAfter all fields are complete, say exactly \"Form is complete\" and then provide a summary in the patient's preferred language."
+    },
+    {
+        "role": "user",
+        "content": "Ang aking pangalan si Rob Fielding"
+    },
+    {
+        "role": "assistant",
+        "content": "Great! What is your complete address, including city, state, and ZIP code?"
+    },
+    {
+        "role": "user",
+        "content": "7445 larne ct, lorton va, 22079"
+    },
+    {
+        "role": "assistant",
+        "content": "What is the name of your insurance provider?"
+    },
+    {
+        "role": "user",
+        "content": "aetna"
+    },
+    {
+        "role": "assistant",
+        "content": "What is your insurance group number?"
+    },
+    {
+        "role": "user",
+        "content": "13412341234"
+    },
+    {
+        "role": "assistant",
+        "content": "Form is complete.\n\nSummary:\n- Full Name: Rob Fielding\n- Complete Address: 7445 Larne Ct, Lorton VA, 22079\n- Insurance Provider Name: Aetna\n- Insurance Group Number: 13412341234\n\nIs there anything else you would like to add or change?"
+    }
+]

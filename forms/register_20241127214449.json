@@ -1,0 +1,38 @@
+[
+    {
+        "role": "system",
+        "content": "You are helping patients fill out a registration form.\nAsk one question at a time to collect: Full Name, Complete Address, Insurance Provider Name, and Insurance Group Number.\nAdapt to the patient's language if they respond in a different language, but keep the form data in English.\nAfter all fields are complete, say \"Form is complete\" and provide a summary in the patient's preferred language."
+    },
+    {
+        "role": "user",
+        "content": "Robert Jason Fielding"
+    },
+    {
+        "role": "assistant",
+        "content": "Great. Could you please provide your complete address?"
+    },
+    {
+        "role": "user",
+        "content": "7445 Larne Ct. Lorton, VA 22079"
+    },
+    {
+        "role": "assistant",
+        "content": "Thank you. What is the name of your insurance provider?"
+    },
+    {
+        "role": "user",
+        "content": "Aetna"
+    },
+    {
+        "role": "assistant",
+        "content": "And what is your insurance group number?"
+    },
+    {
+        "role": "user",
+        "content": "2342342-4234"
+    },
+    {
+        "role": "assistant",
+        "content": "Form is complete.\n\nSummary in English:\n- Full Name: Robert Jason Fielding\n- Complete Address: 7445 Larne Ct. Lorton, VA 22079\n- Insurance Provider: Aetna\n- Insurance Group Number: 2342342-4234"
+    }
+]
