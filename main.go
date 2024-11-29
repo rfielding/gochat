@@ -10,6 +10,7 @@ import (
 	"net/http/httputil"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	openai "github.com/sashabaranov/go-openai"
@@ -55,6 +56,14 @@ type ChatRequest struct {
 // ChatResponse defines the structure for outgoing chat messages
 type ChatResponse struct {
 	Response string `json:"response"`
+}
+
+// Add this struct to store the extracted form data
+type RegistrationData struct {
+	FullName    string `json:"full_name"`
+	DateOfBirth string `json:"date_of_birth"`
+	License     string `json:"license"`
+	Contact     string `json:"contact"`
 }
 
 // Global variables
@@ -177,7 +186,29 @@ func handleChat(w http.ResponseWriter, r *http.Request, formID string) {
 			return
 		}
 
-		log.Printf("Initializing new conversation for form %s with system prompt: %s", formID, form.SystemPrompt)
+		// For visit form, check for registration data
+		if formID == "visit" {
+			// Try to get license from query parameter
+			license := r.URL.Query().Get("key")
+			if license != "" {
+				// Load registration data
+				regData, err := loadFormData("register", license)
+				if err == nil {
+					// Update system prompt with registration data
+					form.SystemPrompt = strings.Replace(
+						form.SystemPrompt,
+						"{{.registration_data}}",
+						fmt.Sprintf("Name: %s, License: %s", regData["full_name"], license),
+						1,
+					)
+				}
+			} else {
+				// Modify system prompt to ask for license first
+				form.SystemPrompt = "Please ask the user for their license number first. Once provided, we can proceed with the visit form."
+			}
+		}
+
+		// Initialize conversation with appropriate system prompt
 		conv = &ConversationState{
 			Messages: []openai.ChatCompletionMessage{
 				{
@@ -224,21 +255,123 @@ func handleChat(w http.ResponseWriter, r *http.Request, formID string) {
 	aiMessage := response.Choices[0].Message
 	conv.Messages = append(conv.Messages, aiMessage)
 
-	// Log final conversation state
-	log.Printf("Final conversation state:")
+	// Debug logging for conversation state
+	log.Printf("Current conversation state:")
 	for i, msg := range conv.Messages {
 		log.Printf("Message %d - Role: %s, Content: %s", i, msg.Role, msg.Content)
 	}
 
+	// Check if this is a confirmation "yes" after the summary
+	if isFormComplete(conv.Messages) {
+		log.Printf("Form completion detected!")
+		form := formRegistry[formID]
+		data, err := extractFormData(conv.Messages)
+		if err != nil {
+			log.Printf("Error extracting form data: %v", err)
+			http.Error(w, "Error processing form data", http.StatusInternalServerError)
+			return
+		}
+
+		// Save the form data
+		filename := fmt.Sprintf("forms/%s-%s.json", data.License, formID)
+		if err := saveFormData(filename, data); err != nil {
+			log.Printf("Error saving form data: %v", err)
+			http.Error(w, "Error saving form data", http.StatusInternalServerError)
+			return
+		}
+
+		// Generate next form URL with absolute path
+		if form.NextForm != "" {
+			nextForm := formRegistry[form.NextForm]
+			nextFormURL := fmt.Sprintf("%s?key=%s", nextForm.Path, data.License)
+			aiMessage.Content += fmt.Sprintf("\n\nClick here to continue: %s", nextFormURL)
+			log.Printf("Generated next form URL: %s", nextFormURL)
+		}
+	}
+
 	// Send the AI's response to the user
 	aiResponse := ChatResponse{Response: aiMessage.Content}
-	responseDump, err := json.MarshalIndent(aiResponse, "", "  ")
-	if err != nil {
-		log.Printf("Error marshaling response: %v", err)
-	} else {
-		log.Printf("Sending response to user:\n%s", string(responseDump))
-	}
 	json.NewEncoder(w).Encode(aiResponse)
+}
+
+func isFormComplete(messages []openai.ChatCompletionMessage) bool {
+	if len(messages) < 1 {
+		return false
+	}
+
+	// Check if the last AI message contains the trigger phrase
+	lastMsg := messages[len(messages)-1].Content
+	log.Printf("Checking last message: %s", lastMsg)
+
+	return strings.Contains(lastMsg, "We are saving this form in our database.")
+}
+
+func extractFormData(messages []openai.ChatCompletionMessage) (*RegistrationData, error) {
+	// Find the summary message by looking for all required fields
+	var summaryMsg string
+	for i := len(messages) - 1; i >= 0; i-- {
+		msg := messages[i].Content
+		if strings.Contains(msg, "Full Name:") &&
+			strings.Contains(msg, "Date of Birth:") &&
+			strings.Contains(msg, "License Number:") &&
+			strings.Contains(msg, "Contact Information:") {
+			summaryMsg = msg
+			break
+		}
+	}
+
+	if summaryMsg == "" {
+		return nil, fmt.Errorf("no summary found in conversation")
+	}
+
+	log.Printf("Found summary message: %s", summaryMsg)
+
+	// Parse the summary using regex
+	data := &RegistrationData{}
+
+	// Extract full name (now handling bullet points or dashes)
+	if match := regexp.MustCompile(`Full Name: (.*?)[\n$]`).FindStringSubmatch(summaryMsg); len(match) > 1 {
+		data.FullName = strings.TrimSpace(match[1])
+	}
+	// Extract DOB
+	if match := regexp.MustCompile(`Date of Birth: (.*?)[\n$]`).FindStringSubmatch(summaryMsg); len(match) > 1 {
+		data.DateOfBirth = strings.TrimSpace(match[1])
+	}
+	// Extract license
+	if match := regexp.MustCompile(`License Number: (.*?)[\n$]`).FindStringSubmatch(summaryMsg); len(match) > 1 {
+		data.License = strings.TrimSpace(match[1])
+	}
+	// Extract contact
+	if match := regexp.MustCompile(`Contact Information: (.*?)[\n$]`).FindStringSubmatch(summaryMsg); len(match) > 1 {
+		data.Contact = strings.TrimSpace(match[1])
+	}
+
+	if data.License == "" {
+		return nil, fmt.Errorf("could not extract license number from summary")
+	}
+
+	log.Printf("Extracted data: %+v", data)
+	return data, nil
+}
+
+func saveFormData(filename string, data *RegistrationData) error {
+	// Ensure the forms directory exists
+	if err := os.MkdirAll("forms", 0755); err != nil {
+		return fmt.Errorf("failed to create forms directory: %v", err)
+	}
+
+	// Marshal the data to JSON
+	jsonData, err := json.MarshalIndent(data, "", "  ")
+	if err != nil {
+		return fmt.Errorf("failed to marshal form data: %v", err)
+	}
+
+	// Write the file
+	if err := os.WriteFile(filename, jsonData, 0644); err != nil {
+		return fmt.Errorf("failed to write form data: %v", err)
+	}
+
+	return nil
 }
 
 // Helper function to load form data
