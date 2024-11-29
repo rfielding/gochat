@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+    <site_title>Chat Forms</site_title>
+    <base_url>http://localhost:8080</base_url>
+    
+    <templates>
+        <template name="chat_form">
+            <![CDATA[
+                <!DOCTYPE html>
+                <html>
+                    <!-- HTML template content -->
+                </html>
+            ]]>
+        </template>
+    </templates>
+
+    <forms>
+        <form name="register">
+            <config>
+                {
+                    "path": "/register",
+                    "title": "Registration Form",
+                    "description": "Please complete your registration",
+                    "button_text": "Send",
+                    "primary_key": "license",
+                    "prerequisite_form": "",
+                    "next_form": "visit",
+                    "form_template": "chat_form"
+                }
+            </config>
+            <form_fields>
+                <![CDATA[
+                Full Name: {{.FullName}}
+                Date of Birth: {{.DateOfBirth}}
+                License Number: {{.License}}
+                Phone Number: {{.PhoneNumber}}
+                Email: {{.Email}}
+                Insurance Provider: {{.InsuranceProvider}}
+                Group ID: {{.GroupID}}
+                ]]>
+            </form_fields>
+            <system_prompt>
+                <![CDATA[
+                You are a registration form assistant. I will show you a form template with fields marked by {{field}}. 
+                Please collect each piece of information one at a time. 
+                After collecting all information, show a summary and ask the user to confirm it's correct. 
+                IMPORTANT: When the user confirms the information is correct, you must respond with EXACTLY this phrase first: 'We are saving this form in our database.' 
+                You can then follow this with a thank you message. 
+                Here is the form template: %s
+                ]]>
+            </system_prompt>
+        </form>
+        <form name="visit">
+            <config>
+                {
+                    "path": "/visit",
+                    "title": "Visit Form",
+                    "description": "Please describe your visit",
+                    "button_text": "Send",
+                    "primary_key": "visit_id",
+                    "prerequisite_form": "register",
+                    "next_form": "",
+                    "form_template": "chat_form"
+                }
+            </config>
+            <form_fields>
+                <![CDATA[
+                Visit ID: {{.VisitID}}
+                Purpose: {{.Purpose}}
+                Preferred Date: {{.PreferredDate}}
+                Special Requirements: {{.SpecialRequirements}}
+                ]]>
+            </form_fields>
+            <system_prompt>
+                <![CDATA[
+                You are helping a registered patient schedule a visit. 
+                Their information: %s
+                Please help fill out this form template: %s
+                ]]>
+            </system_prompt>
+        </form>
+    </forms>
+</configuration> 

@@ -29,6 +29,7 @@ type FormData struct {
 	NextForm         string `json:"next_form"`
 	FormTemplate     string `json:"form_template"`
 	SystemPrompt     string `json:"system_prompt"`
+	FormFields       string `json:"form_fields"`
 }
 
 // Template defines the structure for HTML templates
@@ -87,7 +88,9 @@ type Configuration struct {
 	Forms struct {
 		Form []struct {
 			Name   string `xml:"name,attr"`
-			Config string `xml:",chardata"`
+			Config string `xml:"config"`
+			Fields string `xml:"form_fields"`
+			Prompt string `xml:"system_prompt"`
 		} `xml:"form"`
 	} `xml:"forms"`
 }
@@ -427,8 +430,39 @@ func loadConfiguration(filename string) (*Configuration, error) {
 		if err := json.Unmarshal([]byte(form.Config), &formData); err != nil {
 			return nil, fmt.Errorf("error parsing form config: %v", err)
 		}
+		formData.FormFields = form.Fields
+		formData.SystemPrompt = form.Prompt
 		formRegistry[form.Name] = formData
 	}
 
 	return &config, nil
+}
+
+func initializeConversation(form FormData, regData map[string]string) (*ConversationState, error) {
+	// For visit form, include registration data in prompt
+	var systemPrompt string
+	if form.PrerequisiteForm != "" && regData != nil {
+		systemPrompt = fmt.Sprintf(form.SystemPrompt,
+			formatRegistrationData(regData),
+			form.FormFields)
+	} else {
+		systemPrompt = fmt.Sprintf(form.SystemPrompt, form.FormFields)
+	}
+
+	return &ConversationState{
+		Messages: []openai.ChatCompletionMessage{
+			{
+				Role:    openai.ChatMessageRoleSystem,
+				Content: systemPrompt,
+			},
+		},
+	}, nil
+}
+
+func formatRegistrationData(regData map[string]string) string {
+	var result []string
+	for key, value := range regData {
+		result = append(result, fmt.Sprintf("%s: %s", key, value))
+	}
+	return strings.Join(result, "\n")
 }
