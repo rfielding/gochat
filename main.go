@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"encoding/xml"
 	"fmt"
 	"html/template"
 	"log"
@@ -72,6 +73,24 @@ var (
 	conversations = make(map[string]*ConversationState)
 	chatClient    *openai.Client
 )
+
+type Configuration struct {
+	XMLName   xml.Name `xml:"configuration"`
+	SiteTitle string   `xml:"site_title"`
+	BaseURL   string   `xml:"base_url"`
+	Templates struct {
+		Template []struct {
+			Name string `xml:"name,attr"`
+			HTML string `xml:",chardata"`
+		} `xml:"template"`
+	} `xml:"templates"`
+	Forms struct {
+		Form []struct {
+			Name   string `xml:"name,attr"`
+			Config string `xml:",chardata"`
+		} `xml:"form"`
+	} `xml:"forms"`
+}
 
 func main() {
 	// Initialize OpenAI client with your API key
@@ -388,4 +407,28 @@ func loadFormData(formType string, key string) (map[string]string, error) {
 	}
 
 	return formData, nil
+}
+
+func loadConfiguration(filename string) (*Configuration, error) {
+	data, err := os.ReadFile(filename)
+	if err != nil {
+		return nil, fmt.Errorf("error reading config file: %v", err)
+	}
+
+	var config Configuration
+	if err := xml.Unmarshal(data, &config); err != nil {
+		return nil, fmt.Errorf("error parsing configuration: %v", err)
+	}
+
+	// Convert to the format expected by the rest of the application
+	formRegistry = make(map[string]FormData)
+	for _, form := range config.Forms.Form {
+		var formData FormData
+		if err := json.Unmarshal([]byte(form.Config), &formData); err != nil {
+			return nil, fmt.Errorf("error parsing form config: %v", err)
+		}
+		formRegistry[form.Name] = formData
+	}
+
+	return &config, nil
 }
