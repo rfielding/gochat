@@ -1,6 +1,0 @@
-
-PATIENT VISIT FORM
------------------
-Patient Name: Rob Fielding
-Reason for Visit: Headache
-Date: November 27, 2024

@@ -1,8 +1,0 @@
-
-PATIENT REGISTRATION FORM
-------------------------
-Full Name: Rob Fielding
-Address: 7445 Larne Ct Lorton VA
-Insurance Provider: Aetna
-Insurance Group #: 134134134
-Date: November 27, 2024
