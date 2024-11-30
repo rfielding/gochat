@@ -1,4 +1,4 @@
-module chatbot
+module github.com/rfielding/gochat
 
 go 1.22.5
 
