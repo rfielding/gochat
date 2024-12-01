@@ -329,7 +329,7 @@ func handleChat(w http.ResponseWriter, r *http.Request, config Configuration, fo
 
 		// Handle form saving
 		if shouldSave {
-			filename := fmt.Sprintf("forms/registration-%s.json", session.FormData["License"])
+			filename := fmt.Sprintf("forms/%s-%s.json", formName, session.FormData["License"])
 			log.Printf("💾 SAVE [%s]: Saving to %s", formName, filename)
 
 			// Change this part to save the actual form data
