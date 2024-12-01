@@ -9,6 +9,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"regexp"
 	"strings"
 
 	qrcode "github.com/skip2/go-qrcode"
@@ -69,6 +70,53 @@ type ChatSession struct {
 
 // Global session storage
 var chatSessions = make(map[string]*ChatSession)
+
+type FormField struct {
+	Label   string
+	Name    string
+	Example string
+}
+
+func parseFormFields(fieldsStr string) []FormField {
+	lines := strings.Split(fieldsStr, "\n")
+	fields := make([]FormField, 0)
+
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+
+		// Parse "Field Label: {{.FieldName}} (like example)"
+		parts := strings.Split(line, ":")
+		if len(parts) != 2 {
+			continue
+		}
+
+		label := strings.TrimSpace(parts[0])
+
+		// Extract field name from {{.FieldName}}
+		nameMatch := regexp.MustCompile(`{{\.(\w+)}}`).FindStringSubmatch(parts[1])
+		if len(nameMatch) < 2 {
+			continue
+		}
+		name := nameMatch[1]
+
+		// Extract example if present
+		example := ""
+		if idx := strings.Index(parts[1], "(like "); idx != -1 {
+			example = strings.Trim(parts[1][idx+6:], ")")
+		}
+
+		fields = append(fields, FormField{
+			Label:   label,
+			Name:    name,
+			Example: example,
+		})
+	}
+
+	return fields
+}
 
 func main() {
 	// Load configuration
@@ -134,8 +182,29 @@ func main() {
 				}
 			}
 
+			// Parse form fields and log them
+			fields := parseFormFields(form.Fields)
+			log.Printf("Parsed fields: %+v", fields)
+
+			// Try to load existing data
+			initialData := make(map[string]string)
+			if license := r.URL.Query().Get("License"); license != "" {
+				filename := fmt.Sprintf("forms/registration-%s.json", license)
+				if data, err := os.ReadFile(filename); err == nil {
+					json.Unmarshal(data, &initialData)
+				}
+			}
+
+			data := map[string]interface{}{
+				"Fields":      fields,
+				"InitialData": initialData,
+			}
+			log.Printf("Template data: %+v", data)
+
 			tmpl := template.Must(template.New("form").Parse(formHTML))
-			tmpl.Execute(w, form)
+			if err := tmpl.Execute(w, data); err != nil {
+				log.Printf("Template error: %v", err)
+			}
 		})
 
 		// Chat endpoint
@@ -156,7 +225,8 @@ func handleChat(w http.ResponseWriter, r *http.Request, config Configuration, fo
 	log.Printf("=== Chat request received for form: %s ===", formName)
 
 	var chatReq struct {
-		Message string `json:"message"`
+		Message  string `json:"message"`
+		AutoSave bool   `json:"autoSave"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&chatReq); err != nil {
 		log.Printf("ERROR [%s]: Failed to decode chat request: %v", formName, err)
@@ -180,6 +250,29 @@ func handleChat(w http.ResponseWriter, r *http.Request, config Configuration, fo
 			FormData: make(map[string]string),
 		}
 		chatSessions[formName] = session
+	}
+
+	// If it's an auto-save request, just handle the SET and save
+	if chatReq.AutoSave {
+		if strings.HasPrefix(chatReq.Message, "SET ") {
+			parts := strings.SplitN(strings.TrimPrefix(chatReq.Message, "SET "), " ", 2)
+			if len(parts) == 2 {
+				field := strings.TrimSpace(parts[0])
+				value := strings.TrimSpace(parts[1])
+				session.FormData[field] = value
+
+				// Save immediately
+				filename := fmt.Sprintf("forms/registration-%s.json", session.FormData["License"])
+				formJSON, _ := json.MarshalIndent(session.FormData, "", "    ")
+				os.MkdirAll("forms", 0755)
+				os.WriteFile(filename, formJSON, 0644)
+
+				json.NewEncoder(w).Encode(map[string]interface{}{
+					"updates": map[string]string{field: value},
+				})
+				return
+			}
+		}
 	}
 
 	// Add user message to history

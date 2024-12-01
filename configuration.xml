@@ -45,10 +45,12 @@
                 </head>
                 <body>
                     <div id="form-display">
-                        <div data-field="FullName">Full Name: </div>
-                        <div data-field="DateOfBirth">Date of Birth: </div>
-                        <div data-field="License">License Number: </div>
-                        <div data-field="Contact">Contact Information: </div>
+                        {{range .Fields}}
+                            <div>
+                                <label>{{.Label}} {{if .Example}}({{.Example}}){{end}}:</label>
+                                <input type="text" data-field="{{.Name}}" placeholder="{{.Label}}">
+                            </div>
+                        {{end}}
                     </div>
                     <div id="chat-container"></div>
                     <div>
@@ -56,20 +58,29 @@
                         <button onclick="sendMessage()">Send</button>
                     </div>
                     <script>
+                        const initialData = {{.InitialData}};
+                        
+                        for (const [field, value] of Object.entries(initialData)) {
+                            const elem = document.querySelector(`input[data-field="${field}"]`);
+                            if (elem) {
+                                elem.value = value;
+                            }
+                        }
+                        
                         function appendMessage(data, isUser) {
                             if (!isUser) {
                                 console.log("Received data:", data);
                                 
-                                // Handle form updates
+                                // Update this part to handle input elements
                                 if (data.updates) {
                                     for (const [field, value] of Object.entries(data.updates)) {
-                                        const elem = document.querySelector(`[data-field="${field}"]`);
+                                        const elem = document.querySelector(`input[data-field="${field}"]`);
                                         if (elem) {
-                                            elem.textContent = `${field}: ${value}`;
+                                            elem.value = value;
                                         }
                                     }
                                 }
-
+                                
                                 // Show the message
                                 if (data.message) {
                                     const div = document.createElement('div');
@@ -142,6 +153,26 @@
                             console.error('Error starting chat:', error);
                             appendMessage({message: 'Sorry, there was an error starting the chat.'}, false);
                         });
+
+                        document.querySelectorAll('#form-display input').forEach(input => {
+                            input.addEventListener('change', function() {
+                                const value = this.value;
+                                // Send the value as a regular chat message
+                                fetch(window.location.pathname + '/chat', {
+                                    method: 'POST',
+                                    headers: {'Content-Type': 'application/json'},
+                                    body: JSON.stringify({
+                                        message: value
+                                    })
+                                })
+                                .then(response => response.json())
+                                .then(data => {
+                                    appendMessage(value, true);  // Show user input
+                                    appendMessage(data, false);  // Show AI response
+                                })
+                                .catch(error => console.error('Error:', error));
+                            });
+                        });
                     </script>
                 </body>
                 </html>
@@ -164,7 +195,14 @@
                 Full Name: {{.FullName}} (like first, middle, last name)
                 Date of Birth: {{.DateOfBirth}} (like 1970-01-01)
                 License Number: {{.License}} (like 444-55-6666)
-                Contact Information: {{.Contact}} (like phone number, email, address)
+                Email Address: {{.Email}}
+                Phone Number: {{.Phone}}
+                Street Address: {{.StreetAddress}}
+                City: {{.City}}
+                State: {{.State}}
+                Zip Code: {{.ZipCode}}
+                Insurance Provider: {{.InsuranceProvider}}
+                Insurance Group Number: {{.InsuranceGroupNumber}}
             </form_fields>
             <system_prompt>
                 You are working at the front desk of a clinic.
@@ -278,8 +316,10 @@
                 Before asking for any field, check if it's already filled in the form data.
                 The current form data is sent to you in the chat history.
                 If a field already has a value, move on to the next empty field.
+                Always try to respond to the user in the last language the user used.
                 
                 When all fields are filled, use the SAVE command and thank the user.
+                If the user edited something manually, tell the user "I set ${fieldName} to ${value}"
             </system_prompt>
         </form>
     </forms>
