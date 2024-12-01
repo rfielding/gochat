@@ -45,9 +45,7 @@
                 </head>
                 <body>
                     <div id="form-display">
-                        <div data-field="FirstName">First Name: </div>
-                        <div data-field="MiddleName">Middle Name: </div>
-                        <div data-field="LastName">Last Name: </div>
+                        <div data-field="FullName">Full Name: </div>
                         <div data-field="DateOfBirth">Date of Birth: </div>
                         <div data-field="License">License Number: </div>
                         <div data-field="Contact">Contact Information: </div>
@@ -276,7 +274,13 @@
                 You should initiate the conversation by asking for the first field in the form.
                 If you do a SET or a SAVE command, you need to SAY what you want from the user next,
                 so that the user knows how to respond.
-           </system_prompt>
+
+                Before asking for any field, check if it's already filled in the form data.
+                The current form data is sent to you in the chat history.
+                If a field already has a value, move on to the next empty field.
+                
+                When all fields are filled, use the SAVE command and thank the user.
+            </system_prompt>
         </form>
     </forms>
 </configuration> 

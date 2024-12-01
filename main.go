@@ -238,21 +238,30 @@ func handleChat(w http.ResponseWriter, r *http.Request, config Configuration, fo
 			filename := fmt.Sprintf("forms/registration-%s.json", session.FormData["License"])
 			log.Printf("💾 SAVE [%s]: Saving to %s", formName, filename)
 
+			// Change this part to save the actual form data
+			formJSON, err := json.MarshalIndent(session.FormData, "", "    ")
+			if err != nil {
+				log.Printf("❌ ERROR [%s]: Failed to marshal form data: %v", formName, err)
+				http.Error(w, "Failed to save form", http.StatusInternalServerError)
+				return
+			}
+
 			if err := os.MkdirAll("forms", 0755); err != nil {
 				log.Printf("❌ ERROR [%s]: Failed to create forms directory: %v", formName, err)
 				http.Error(w, "Failed to create forms directory", http.StatusInternalServerError)
 				return
 			}
 
-			if err := os.WriteFile(filename, []byte(responseText), 0644); err != nil {
+			if err := os.WriteFile(filename, formJSON, 0644); err != nil {
 				log.Printf("❌ ERROR [%s]: Failed to write to %s: %v", formName, filename, err)
 				http.Error(w, "Failed to save form", http.StatusInternalServerError)
 				return
 			}
 		}
 
-		json.NewEncoder(w).Encode(map[string]string{
+		json.NewEncoder(w).Encode(map[string]interface{}{
 			"message": responseText,
+			"updates": formUpdates,
 		})
 	}
 }
