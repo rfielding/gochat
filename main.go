@@ -16,10 +16,13 @@ import (
 )
 
 type ConfigurationForm struct {
-	Name   string `xml:"name,attr"`
-	Config string `xml:"config"`
-	Fields string `xml:"form_fields"`
-	Prompt string `xml:"system_prompt"`
+	Name        string `xml:"name,attr"`
+	Config      string `xml:"config"`
+	Fields      string `xml:"form_fields"`
+	Prompt      string `xml:"system_prompt"`
+	ContextForm string `xml:"context_form"`
+	NextForm    string `xml:"next_form"`
+	PrimaryKey  string `xml:"primary_key"`
 }
 
 // Configuration structures
@@ -28,6 +31,7 @@ type Configuration struct {
 	SystemPrompt string   `xml:"system_prompt"`
 	XMLName      xml.Name `xml:"configuration"`
 	SiteTitle    string   `xml:"site_title"`
+	BindAddr     string   `xml:"bind_addr"`
 	BaseURL      string   `xml:"base_url"`
 	Templates    struct {
 		Template []struct {
@@ -185,22 +189,13 @@ func main() {
 
 			// Parse form fields and log them
 			fields := parseFormFields(form.Fields)
-			log.Printf("Parsed fields: %+v", fields)
-
-			// Try to load existing data
-			initialData := make(map[string]string)
-			if license := r.URL.Query().Get("License"); license != "" {
-				filename := fmt.Sprintf("forms/registration-%s.json", license)
-				if data, err := os.ReadFile(filename); err == nil {
-					json.Unmarshal(data, &initialData)
-				}
-			}
+			//log.Printf("Parsed fields: %+v", fields)
 
 			data := map[string]interface{}{
 				"Fields":      fields,
-				"InitialData": initialData,
+				"InitialData": getContextData(config, formName, r),
 			}
-			log.Printf("Template data: %+v", data)
+			//log.Printf("Template data: %+v", data)
 
 			tmpl := template.Must(template.New("form").Parse(formHTML))
 			if err := tmpl.Execute(w, data); err != nil {
@@ -218,16 +213,37 @@ func main() {
 		})
 	}
 
-	log.Printf("Server starting on %s", config.BaseURL)
-	log.Fatal(http.ListenAndServe(":8080", nil))
+	log.Printf("Server starting on %s", config.BindAddr)
+	log.Fatal(http.ListenAndServe(config.BindAddr, nil))
+}
+
+func getContextData(config Configuration, formName string, r *http.Request) string {
+	pk := config.FormByName(formName).PrimaryKey
+	c, err := r.Cookie(pk)
+	if err != nil {
+		log.Printf("contextData cookie error: %v\n", err)
+		return ""
+	}
+	contextFileName := fmt.Sprintf(
+		"forms/%s-%s.json",
+		formName,
+		c.Value,
+	)
+	log.Printf("contextFileName: %s\n", contextFileName)
+	var data []byte
+	if data, err = os.ReadFile(contextFileName); err == nil {
+		log.Printf("contextData: %s\n", string(data))
+		return string(data)
+	}
+	log.Printf("contextData error: %v\n", err)
+	return ""
 }
 
 func handleChat(w http.ResponseWriter, r *http.Request, config Configuration, formName string) {
 	log.Printf("=== Chat request received for form: %s ===", formName)
 
 	var chatReq struct {
-		Message  string `json:"message"`
-		AutoSave bool   `json:"autoSave"`
+		Message string `json:"message"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&chatReq); err != nil {
 		log.Printf("ERROR [%s]: Failed to decode chat request: %v", formName, err)
@@ -241,6 +257,7 @@ func handleChat(w http.ResponseWriter, r *http.Request, config Configuration, fo
 	session := chatSessions[formName]
 	if session == nil {
 		log.Printf("📝 Creating new chat session for form: %s", formName)
+
 		session = &ChatSession{
 			Messages: []ChatMessage{
 				{
@@ -250,36 +267,13 @@ func handleChat(w http.ResponseWriter, r *http.Request, config Configuration, fo
 						config.FormByName(formName).Prompt,
 						config.SystemPrompt,
 						config.FormByName(formName).Fields,
-						"", // ie: for visit form, registration data goes here
+						getContextData(config, formName, r),
 					),
 				},
 			},
 			FormData: make(map[string]string),
 		}
 		chatSessions[formName] = session
-	}
-
-	// If it's an auto-save request, just handle the SET and save
-	if chatReq.AutoSave {
-		if strings.HasPrefix(chatReq.Message, "SET ") {
-			parts := strings.SplitN(strings.TrimPrefix(chatReq.Message, "SET "), " ", 2)
-			if len(parts) == 2 {
-				field := strings.TrimSpace(parts[0])
-				value := strings.TrimSpace(parts[1])
-				session.FormData[field] = value
-
-				// Save immediately
-				filename := fmt.Sprintf("forms/registration-%s.json", session.FormData["License"])
-				formJSON, _ := json.MarshalIndent(session.FormData, "", "    ")
-				os.MkdirAll("forms", 0755)
-				os.WriteFile(filename, formJSON, 0644)
-
-				json.NewEncoder(w).Encode(map[string]interface{}{
-					"updates": map[string]string{field: value},
-				})
-				return
-			}
-		}
 	}
 
 	// Add user message to history
@@ -357,6 +351,13 @@ func handleChat(w http.ResponseWriter, r *http.Request, config Configuration, fo
 				http.Error(w, "Failed to save form", http.StatusInternalServerError)
 				return
 			}
+
+			//Set the cookie for the primary key
+			pk := config.FormByName(formName).PrimaryKey
+			http.SetCookie(w, &http.Cookie{
+				Name:  pk,
+				Value: session.FormData[pk],
+			})
 		}
 
 		json.NewEncoder(w).Encode(map[string]interface{}{
