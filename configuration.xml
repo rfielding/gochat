@@ -141,6 +141,12 @@
                           <img src="/qr/registration" alt="Registration QR Code">
                         </a>
                     </div>
+                    <div class="qr-code">
+                        <h2>Visit Form</h2>
+                        <a href="/form/visit">
+                            <img src="/qr/visit" alt="Visit QR Code">
+                        </a>
+                    </div>
                 </body>
                 </html>
             ]]>
@@ -338,6 +344,24 @@
         %s
         ```
             </system_prompt>
+        </form>
+        <form name="visit">
+            <config>visit</config>
+            <form_fields>
+License Number: {{.License}} (like ABC123)
+Visit Date: {{.VisitDate}} (like 2024-03-21)
+Visit Reason: {{.VisitReason}} (like annual checkup)
+Doctor: {{.Doctor}} (like Dr. Smith)
+Price: {{.Price}} (like 150.00)
+Blood Work: {{.BloodWork}} (like yes/no)
+            </form_fields>
+            <system_prompt>%s
+You are a veterinary clinic visit form assistant. Help record visit information accurately.
+Use the following fields:
+%s
+If context data is provided, here it is:
+%s</system_prompt>
+            <primary_key>License,VisitDate</primary_key>
         </form>
     </forms>
 </configuration> 
