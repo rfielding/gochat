@@ -24,11 +24,12 @@ type ConfigurationForm struct {
 
 // Configuration structures
 type Configuration struct {
-	Model     string   `xml:"model"`
-	XMLName   xml.Name `xml:"configuration"`
-	SiteTitle string   `xml:"site_title"`
-	BaseURL   string   `xml:"base_url"`
-	Templates struct {
+	Model        string   `xml:"model"`
+	SystemPrompt string   `xml:"system_prompt"`
+	XMLName      xml.Name `xml:"configuration"`
+	SiteTitle    string   `xml:"site_title"`
+	BaseURL      string   `xml:"base_url"`
+	Templates    struct {
 		Template []struct {
 			Name string `xml:"name,attr"`
 			HTML string `xml:",chardata"`
@@ -243,8 +244,14 @@ func handleChat(w http.ResponseWriter, r *http.Request, config Configuration, fo
 		session = &ChatSession{
 			Messages: []ChatMessage{
 				{
-					Role:    "system",
-					Content: fmt.Sprintf(config.FormByName(formName).Prompt, config.FormByName(formName).Fields),
+					Role: "system",
+					Content: fmt.Sprintf(
+						// expects parameters: global prompt, form fields, registration data
+						config.FormByName(formName).Prompt,
+						config.SystemPrompt,
+						config.FormByName(formName).Fields,
+						"", // ie: for visit form, registration data goes here
+					),
 				},
 			},
 			FormData: make(map[string]string),
