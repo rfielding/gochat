@@ -307,53 +307,52 @@
         <form name="registration">
             <config>
                 {
-                    "path": "/register",
+                    "path": "/registration",
                     "title": "Registration Form",
-                    "description": "Please complete your registration",
+                    "description": "New patient registration",
                     "button_text": "Send"
                 }
             </config>
             <primary_key>License</primary_key>
             <context_form>registration</context_form>
-            <next_form>visit</next_form>
             <form_fields>
-                First Name: {{.FirstName}}
-                Middle Name: {{.MiddleName}}
-                Last Name: {{.LastName}}
-                Date of Birth: {{.DateOfBirth}} (like 1970-01-01)
-                License Number: {{.License}} (like 555-55-5555)
-                Email Address: {{.Email}}
-                Phone Number: {{.Phone}} (like: (333)333-3344)
+                Drivers License: {{.License}} (like 555-55-5555)
+                FirstName: {{.FirstName}} (like John)
+                MiddleName: {{.MiddleName}} (like Q)
+                LastName: {{.LastName}} (like Smith)
                 Street Address: {{.StreetAddress}}
                 City: {{.City}}
                 State: {{.State}}
                 Zip Code: {{.ZipCode}}
                 Insurance Provider: {{.InsuranceProvider}}
                 Insurance Group Number: {{.InsuranceGroupNumber}}
+                Date of Birth: {{.DateOfBirth}} (like 1970-01-01)
+                Email Address: {{.Email}}
+                Phone Number: {{.Phone}} (like: (333)333-3344)
             </form_fields>
-            <system_prompt>
-        %s
+            <system_prompt>%s
 
-        The fields you need to collect are:
-
-        ```Form fields
-        %s
-        ```
-
-        ```Registration data
-        %s
-        ```
+You are a registration assistant...
             </system_prompt>
         </form>
         <form name="visit">
-            <config>visit</config>
+            <config>
+                {
+                    "path": "/visit",
+                    "title": "Visit Form",
+                    "description": "New patient visit",
+                    "button_text": "Send"
+                }
+            </config>
+            <primary_key>License,VisitDate</primary_key>
+            <context_form>registration</context_form>
             <form_fields>
-License Number: {{.License}} (like ABC123)
-Visit Date: {{.VisitDate}} (like 2024-03-21)
-Visit Reason: {{.VisitReason}} (like annual checkup)
-Doctor: {{.Doctor}} (like Dr. Smith)
-Price: {{.Price}} (like 150.00)
-Blood Work: {{.BloodWork}} (like yes/no)
+                License Number: {{.License}} (like ABC123)
+                Visit Date: {{.VisitDate}} (like 2024-03-21)
+                Visit Reason: {{.VisitReason}} (like annual checkup)
+                Doctor: {{.Doctor}} (like Dr. Smith)
+                Price: {{.Price}} (like 150.00)
+                Blood Work: {{.BloodWork}} (like yes/no)
             </form_fields>
             <system_prompt>%s
 You are a veterinary clinic visit form assistant. Help record visit information accurately.

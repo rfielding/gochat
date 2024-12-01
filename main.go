@@ -218,15 +218,16 @@ func main() {
 }
 
 func getContextData(config Configuration, formName string, r *http.Request) string {
-	pk := config.FormByName(formName).PrimaryKey
+	cfn := config.FormByName(formName).ContextForm
+	pk := config.FormByName(cfn).PrimaryKey
 	c, err := r.Cookie(pk)
 	if err != nil {
-		log.Printf("contextData cookie error: %v\n", err)
+		log.Printf("contextData cookie %s error: %v\n", pk, err)
 		return ""
 	}
 	contextFileName := fmt.Sprintf(
 		"forms/%s-%s.json",
-		formName,
+		cfn,
 		c.Value,
 	)
 	log.Printf("contextFileName: %s\n", contextFileName)
@@ -355,6 +356,7 @@ func handleChat(w http.ResponseWriter, r *http.Request, config Configuration, fo
 			//Set the cookie for the primary key
 			pk := config.FormByName(formName).PrimaryKey
 			http.SetCookie(w, &http.Cookie{
+				Path:  "/",
 				Name:  pk,
 				Value: session.FormData[pk],
 			})
