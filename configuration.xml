@@ -314,10 +314,14 @@
                 so that the user knows how to respond.
 
                 Before asking for any field, check if it's already filled in the form data.
+                Do not ask the user to fill out fields that already got a value.
+                You will need to track its value.
+
                 The current form data is sent to you in the chat history.
                 If a field already has a value, move on to the next empty field.
                 Always try to respond to the user in the last language the user used.
                 
+                Please start off the chat asking for the first field in the form.
                 When all fields are filled, use the SAVE command and thank the user.
                 If the user edited something manually, tell the user "I set ${fieldName} to ${value}"
             </system_prompt>
