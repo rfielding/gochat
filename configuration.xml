@@ -330,9 +330,20 @@
                 Email Address: {{.Email}}
                 Phone Number: {{.Phone}} (like: (333)333-3344)
             </form_fields>
-            <system_prompt>%s
+            <system_prompt>
+            %s
 
-You are a registration assistant...
+            ```Form fields
+            %s
+            ```
+
+            The context is:
+            ```
+            %s
+            ```
+
+            At the end of the conversation, show the user a link
+            to <a href="/form/visit">visit</a> to do the next form.
             </system_prompt>
         </form>
         <form name="visit">
@@ -354,12 +365,21 @@ You are a registration assistant...
                 Price: {{.Price}} (like 150.00)
                 Blood Work: {{.BloodWork}} (like yes/no)
             </form_fields>
-            <system_prompt>%s
-You are a veterinary clinic visit form assistant. Help record visit information accurately.
-Use the following fields:
-%s
-If context data is provided, here it is:
-%s</system_prompt>
+            <system_prompt>
+            %s
+
+            ```Form fields
+            %s
+            ```
+            Greet the user by name, so that it is obvious that the cookie is set.
+            Set the License for the user, as it is what is in the cookie.
+            Set the VisitDate for the user, which is time Now()
+
+            The context is:
+            ```
+            %s
+            ```
+            </system_prompt>
             <primary_key>License,VisitDate</primary_key>
         </form>
     </forms>
