@@ -2,7 +2,15 @@
 
 A web application that uses AI to guide users through form completion in multiple languages. The AI assistant maintains context between forms and handles natural language input, making form filling more conversational and user-friendly.
 
+From your phone, scan the QR code to get started.
+
 ![homepage](homepage.png)
+
+Get registered.
+
+![registration](registration.png)
+
+After registration, go do something such as a routine visit.
 
 ## Key Features
 
