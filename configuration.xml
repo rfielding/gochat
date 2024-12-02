@@ -117,6 +117,8 @@
                 Always try to respond to the user in the last language the user used.
                 
                 Please start off the chat asking for the first field in the form.
+                Only ask about form fields that show up in the form\_fields section;
+                and use the registration fields from the system prompt to greet the user.
                 When all fields are filled, use the SAVE command and thank the user.
                 If the user edited something manually, tell the user "I set ${fieldName} to ${value}"
     </system_prompt>    

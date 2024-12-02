@@ -259,21 +259,36 @@ func handleChat(w http.ResponseWriter, r *http.Request, config Configuration, fo
 	if session == nil {
 		log.Printf("📝 Creating new chat session for form: %s", formName)
 
+		// Load initial system prompt with context data
+		contextData := getContextData(config, formName, r)
+		log.Printf("Initial context data: %s", contextData)
+
 		session = &ChatSession{
 			Messages: []ChatMessage{
 				{
 					Role: "system",
 					Content: fmt.Sprintf(
-						// expects parameters: global prompt, form fields, registration data
 						config.FormByName(formName).Prompt,
 						config.SystemPrompt,
 						config.FormByName(formName).Fields,
-						getContextData(config, formName, r),
+						contextData,
 					),
 				},
 			},
 			FormData: make(map[string]string),
 		}
+
+		// Pre-populate form data from context if available
+		if contextData != "" {
+			var contextMap map[string]string
+			if err := json.Unmarshal([]byte(contextData), &contextMap); err == nil {
+				for k, v := range contextMap {
+					session.FormData[k] = v
+					log.Printf("Pre-populated %s: %s from context", k, v)
+				}
+			}
+		}
+
 		chatSessions[formName] = session
 	}
 
